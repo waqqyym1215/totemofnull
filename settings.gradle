@@ -1,0 +1,12 @@
+pluginManagement {
+	repositories {
+		gradlePluginPortal()
+		maven {
+			name = 'papermc'
+			url = 'https://repo.papermc.io/repository/maven-public/'
+		}
+		mavenCentral()
+	}
+}
+
+rootProject.name = 'totemofnull-paper'
