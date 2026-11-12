@@ -1,0 +1,34 @@
+# Totem of Null configuration
+
+# Keybind that activates the totem while held.
+# Use the Minecraft key name (e.g. U, K, G). See
+# https://minecraft.wiki/w/Controls for valid names.
+keybind: U
+
+# Number of bots spawned per activation.
+bot-count: 50
+
+# How long (in minutes) bots live before automatically dying.
+bot-lifetime-minutes: 15
+
+# Health (in hearts) below which a bot eats a golden apple.
+bot-eat-threshold: 4.0
+
+# Golden apples each bot starts with.
+bot-golden-apples: 64
+
+# Minimum/maximum seconds a bot keeps its shield raised.
+shield-raise-min-seconds: 1
+shield-raise-max-seconds: 3
+
+# Bot name length (random alphanumeric, mixed case + digits).
+bot-name-length: 14
+
+# Give the owner their kit when they activate the totem.
+give-kit-on-activate: true
+
+# Give the owner their kit when they respawn while still holding the totem.
+give-kit-on-respawn: true
+
+# Bot sword sharpness level (0 = none).
+sword-sharpness: 5

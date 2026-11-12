@@ -1,0 +1,13 @@
+name: TotemHarness
+version: 1.0.0
+main: com.waqqyy.harness.HarnessPlugin
+description: Verification harness for the Totem of Null fake-player mechanism
+api-version: '1.21'
+commands:
+  harness:
+    description: Run the fake-player verification harness
+    usage: /harness [spawn|status|kill|clear|tps|all]
+    permission: harness.run
+permissions:
+  harness.run:
+    default: op

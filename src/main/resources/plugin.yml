@@ -1,0 +1,22 @@
+name: TotemOfNull
+version: 1.0.0
+main: com.waqqyy.totemofnull.TotemOfNullPlugin
+description: Totem of Null - summon 50 fake-player minions against players without full Flow-trimmed netherite
+authors: [miles]
+website: https://github.com/waqqyym1215/totemofnull
+commands:
+  ton:
+    description: Give yourself the Totem of Null
+    usage: /ton
+    permission: totemofnull.give
+  toadmin:
+    description: Admin commands for Totem of Null
+    usage: /toadmin <status|clear|reload>
+    permission: totemofnull.admin
+permissions:
+  totemofnull.give:
+    description: Allows giving yourself the Totem of Null
+    default: op
+  totemofnull.admin:
+    description: Allows admin commands for Totem of Null
+    default: op
