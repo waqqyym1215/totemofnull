@@ -225,7 +225,7 @@ cd C:\Users\miles\totemofnull-paper\harness
 Isolate all NMS behind a small interface so a future swap (e.g. ProtocolLib) touches one file.
 
 ```
-src/main/java/com/miles/totemofnull/
+src/main/java/com/waqqyy/totemofnull/
 ├── TotemOfNullPlugin.java   # ✅ exists — main class, config, recipe, commands
 ├── TotemListener.java       # ✅ exists — activation, anonymity, kit, loot filtering
 ├── ArmorKit.java            # ✅ exists — netherite + Flow + enchants
@@ -242,7 +242,7 @@ interface (~250 methods, most unused, several with typos like `orgbukkit`). **Wr
 first, then extract only the methods actually called.** Keep the interface small.
 
 **Do not hand-write `NmsBridge` from scratch.** Copy the working code from
-`harness/src/main/java/com/miles/harness/FakePlayerFactory.java` and adapt it.
+`harness/src/main/java/com/waqqyy/harness/FakePlayerFactory.java` and adapt it.
 
 ---
 
@@ -253,7 +253,7 @@ first, then extract only the methods actually called.** Keep the interface small
    shield state. Use `player.connection` (not a locally built listener) for anything that touches
    the listener; `placeNewPlayer()` overwrites it.
 3. **Write `PaperNmsBridge`** using the proven mechanism (copy from
-   `harness/src/main/java/com/miles/harness/FakePlayerFactory.java`, including the
+   `harness/src/main/java/com/waqqyy/harness/FakePlayerFactory.java`, including the
    `player.connection` fix).
 4. **Write `BotManager`** — spawn 50 near the holder, tick them, enforce the 15-minute lifetime,
    handle removal. All game rules (targeting, apples, shield) go in plain Bukkit code here.
