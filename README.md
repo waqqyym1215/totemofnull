@@ -204,7 +204,7 @@ Output: `build/libs/totemofnull-paper-<version>.jar`
 
 1. Copy the built jar into your server's `plugins/` folder.
 2. Restart the server.
-3. Verify with `/plugins` — `TotemOfNull` should be listed.
+3. Verify with `/plugins`, `TotemOfNull` should be listed.
 4. Give yourself the totem with the custom command registered by the plugin (see the
    `plugin.yml` command list — intended to be `/ton`).
 
