@@ -35,9 +35,12 @@ public final class NullSkin {
 
 	/** An authlib {@link GameProfile} carrying the black skin, with the given name. */
 	public static GameProfile blackGameProfile(String name) {
-		GameProfile profile = new GameProfile(UUID.randomUUID(), name);
-		profile.properties().put("textures", new Property("textures", BLACK_SKIN_PROPERTY));
-		return profile;
+		// The 2-arg constructor uses PropertyMap.EMPTY, which is immutable; put() would throw
+		// UnsupportedOperationException. Build a mutable map and use the 3-arg constructor.
+		var properties = new com.mojang.authlib.properties.PropertyMap(
+				com.google.common.collect.HashMultimap.create());
+		properties.put("textures", new Property("textures", BLACK_SKIN_PROPERTY));
+		return new GameProfile(UUID.randomUUID(), name, properties);
 	}
 
 	/** A fresh Paper {@link PlayerProfile} carrying the fully black skin. */
