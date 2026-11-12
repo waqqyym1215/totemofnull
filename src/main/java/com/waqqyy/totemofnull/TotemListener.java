@@ -1,5 +1,6 @@
 package com.waqqyy.totemofnull;
 
+import com.waqqyy.totemofnull.bot.BotManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -22,9 +23,9 @@ import java.util.Optional;
 public class TotemListener implements Listener {
 
 	private final TotemOfNullPlugin plugin;
-	private final com.waqqyy.totemofnull.bot.BotManager botManager;
+	private final BotManager botManager;
 
-	public TotemListener(TotemOfNullPlugin plugin, com.waqqyy.totemofnull.bot.BotManager botManager) {
+	public TotemListener(TotemOfNullPlugin plugin, BotManager botManager) {
 		this.plugin = plugin;
 		this.botManager = botManager;
 	}
