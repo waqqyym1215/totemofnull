@@ -207,7 +207,7 @@ public class HarnessPlugin extends JavaPlugin {
 		}
 		check("Bots have inventories", kitOk, "checked=" + bots.size());
 
-			// Check 5: damage and death
+		// Check 5: damage and death
 		if (!bots.isEmpty()) {
 			var bot = bots.get(0).player();
 			float before = bot.getHealth();
@@ -215,15 +215,29 @@ public class HarnessPlugin extends JavaPlugin {
 			boolean abilitiesInvuln = bot.getAbilities().invulnerable;
 			boolean removed = bot.isRemoved();
 			var removalReason = bot.getRemovalReason();
-			boolean invulnTo = bot.isInvulnerableTo(bot.level(),
-					bot.level().damageSources().genericKill());
-			boolean hurt = bot.hurtServer(bot.level(), bot.level().damageSources().genericKill(), 1000f);
+			var botLevel = bot.level();
+			var source = botLevel.damageSources().genericKill();
+			boolean invulnTo = bot.isInvulnerableTo(botLevel, source);
+			boolean invulnToBase = bot.isInvulnerableToBase(source);
+			boolean immune = net.minecraft.world.item.enchantment.EnchantmentHelper
+					.isImmuneToDamage(botLevel, bot, source);
+			boolean deadOrDying = bot.isDeadOrDying();
+			boolean hasLoaded = bot.connection.hasClientLoaded();
+			boolean changingDim = bot.isChangingDimension();
+			boolean spectator = bot.isSpectator();
+			var gm = bot.gameMode.getGameModeForPlayer();
+			boolean creative = gm == net.minecraft.world.level.GameType.CREATIVE;
+			boolean hurt = bot.hurtServer(botLevel, source, 1000f);
 			check("Bot takes damage and dies", hurt && (bot.isDeadOrDying() || bot.getHealth() < before),
 					"before=" + before + " after=" + bot.getHealth()
 							+ " hurt=" + hurt + " invulnerable=" + invuln
 							+ " abilitiesInvuln=" + abilitiesInvuln
 							+ " removed=" + removed + " reason=" + removalReason
-							+ " invulnTo=" + invulnTo);
+							+ " invulnTo=" + invulnTo + " invulnToBase=" + invulnToBase
+							+ " enchantImmune=" + immune + " deadOrDying=" + deadOrDying
+							+ " health=" + bot.getHealth() + " maxHealth=" + bot.getMaxHealth()
+							+ " hasClientLoaded=" + hasLoaded + " changingDim=" + changingDim
+							+ " spectator=" + spectator + " gameMode=" + gm + " creative=" + creative);
 		}
 
 		// Check 6: ticking (they should still be valid after a tick)

@@ -38,7 +38,7 @@ Key agreed rules (from the user, verbatim intent):
 | `ArmorKit.java` | ✅ Written, compiles (verified against real API: `TrimPattern.FLOW`, `TrimMaterial.NETHERITE`) |
 | `NameGenerator.java` | ✅ Written, compiles |
 | `TotemOfNullPlugin.java`, `TotemListener.java`, `plugin.yml`, `config.yml` | ✅ Written, **NOT yet compiled** (they reference `BotManager`, which does not exist yet) |
-| NMS fake-player layer | ⚠️ **In progress — this is the current frontier** |
+| NMS fake-player layer | ✅ **Proven** — all harness checks pass, including damage/death |
 | `harness/` module | ✅ Written, compiles, **runs on a real Paper 26.2 server** |
 
 **The main plugin does not compile yet** because `TotemOfNullPlugin` references
@@ -106,28 +106,56 @@ Also handle `PlayerJoinEvent` so players joining later don't see the bots.
 
 **Harness check for tab hiding passes both ways** (`Unlist mechanism works`, `Bots hidden from real players`).
 
-### Open issue — damage check still FAILS
+### Open issue — damage check: **FIXED** (2026-11-11, harness run 18:20)
 
-Latest harness run:
+The removal hypothesis from the previous session was **wrong**. The real cause:
+
+`ServerPlayer.isInvulnerableTo()` (decompiled source, line 1742) is:
+
+```java
+return (super.isInvulnerableTo(level, source) || this.isChangingDimension() && !source.is(DamageTypes.ENDER_PEARL)
+        || !this.connection.hasClientLoaded())
+    || (!this.level().paperConfig().collisions.allowPlayerCrammingDamage && source.is(DamageTypes.CRAMMING));
 ```
+
+`hasClientLoaded()` is `!waitingForRespawn && clientLoadedTimeoutTimer <= 0`. The timer starts at **60**
+in the `ServerGamePacketListenerImpl` constructor (`restartClientLoadTimerAfterRespawn()`).
+
+**Root cause:** `PlayerList.placeNewPlayer()` constructs its **own** `ServerGamePacketListenerImpl`
+and assigns it to `player.connection`, **overwriting** the listener we built. The factory then called
+`listener.handleAcceptPlayerLoad(null)` on the **stale** listener, so the live listener's timer never
+reached 0. `hasClientLoaded()` stayed false → `isInvulnerableTo()` true → `hurtServer()` returned
+false for everything.
+
+**The fix (one line):** use `player.connection` after `placeNewPlayer()`:
+
+```java
+server.getPlayerList().placeNewPlayer(connection, player, cookie);
+var liveListener = player.connection;          // placeNewPlayer replaced it
+liveListener.handleAcceptPlayerLoad(null);     // was: listener.handleAcceptPlayerLoad(null);
+```
+
+**Final harness run (18:20, all checks PASS):**
+```
+[PASS] Server version (26.2)
 [PASS] Spawn 50 bots (spawned=50)
 [PASS] All bots alive (alive=50)
 [PASS] Bots hidden from real players (realViewers=0 listed=0)
 [PASS] Unlist mechanism works (visibleToBots=0)
 [PASS] Bots have inventories (checked=50)
-[FAIL] Bot takes damage and dies (before=20.0 after=20.0 hurt=false invulnerable=false abilitiesInvuln=false invulnTo=true)
-[PASS] Bots survive a tick (valid=50)
+[PASS] Bot takes damage and dies (before=20.0 after=0.0 hurt=true invulnerable=false
+       abilitiesInvuln=false removed=false reason=null invulnTo=false invulnToBase=false
+       enchantImmune=false deadOrDying=false health=0.0 maxHealth=20.0 hasClientLoaded=true
+       changingDim=false spectator=false gameMode=SURVIVAL creative=false)
+[PASS] Bots survive a tick (valid=49)      # 49 because check 5 killed bot #1
+TPS: 1m=19.75 5m=19.75 15m=19.75  (bots=50)
 ```
 
-**Diagnosis so far:** `invulnerable=false` and `abilitiesInvuln=false`, yet `isInvulnerableTo(...) == true`.
-The next diagnostic (already added to `HarnessPlugin.java`, **not yet run**) prints `isRemoved()` and
-`getRemovalReason()`. Strong hypothesis: `Entity.isRemoved()` is true, because
-`Entity.isInvulnerableToBase()` returns true when `isRemoved()` is true. Likely the bot is being
-removed/ culled because it has no real client.
-
-**Next step:** run the updated harness, read `removed=` / `reason=`, then address the removal cause.
-If `isRemoved()` is the cause, investigate `Entity.setRemoved()`, `RemovalReason`, and whether an
-unlisted player with an `EmbeddedChannel` is being culled by the player list or chunk tracking.
+Diagnostic values that isolated it (from the two intermediate runs):
+- `removed=false reason=null` → `isRemoved()` was never the cause.
+- `invulnToBase=false`, `enchantImmune=false` → neither `Entity.invulnerable` nor enchantment
+  immunity was the cause.
+- `hasClientLoaded=false` → the single gate that was true. This is what pointed at the listener.
 
 ---
 
@@ -220,11 +248,13 @@ first, then extract only the methods actually called.** Keep the interface small
 
 ## 7. Immediate next steps
 
-1. **Finish the damage check.** Run the updated harness, read `removed=` / `reason=`, fix the
-   removal cause. Until bots can be damaged and killed, the plugin cannot work.
+1. ~~Finish the damage check.~~ **DONE** — all harness checks pass. See section 3.
 2. **Write `NullBot`** — a thin wrapper holding `ServerPlayer`, name, spawn time, golden-apple count,
-   shield state.
-3. **Write `PaperNmsBridge`** using the proven mechanism (copy from the harness).
+   shield state. Use `player.connection` (not a locally built listener) for anything that touches
+   the listener; `placeNewPlayer()` overwrites it.
+3. **Write `PaperNmsBridge`** using the proven mechanism (copy from
+   `harness/src/main/java/com/miles/harness/FakePlayerFactory.java`, including the
+   `player.connection` fix).
 4. **Write `BotManager`** — spawn 50 near the holder, tick them, enforce the 15-minute lifetime,
    handle removal. All game rules (targeting, apples, shield) go in plain Bukkit code here.
 5. **Make the main plugin compile** (`./gradlew build` in the project root) — it currently fails
@@ -236,6 +266,18 @@ first, then extract only the methods actually called.** Keep the interface small
 
 ## 8. Other things to know
 
+- **RCON on the test server does not authenticate.** `enable-rcon=true` and the listener is up
+  (`RCON running on 0.0.0.0:25575`), but every auth packet is answered with an immediate close
+  (`recv` returns 0 bytes), regardless of encoding or packet variant. Do not spend more time on
+  RCON. **Instead, run the server in a PTY** and drive the console directly:
+  `terminal(background=true, pty=true)` on `java -Xms1G -Xmx2G -jar paper.jar nogui`, then
+  `process_manage(action="submit", data="harness all
+")` and `action="log"`. This works reliably.
+  (Note: on Windows PTY, submit `...
+` — a bare `\n` is not delivered as Enter.)
+- **Only one Paper server may run at a time.** A stale duplicate server held port 25575 and made
+  RCON look broken. Check with `netstat -ano | grep LISTENING | grep 25575` and kill stragglers
+  with `cmd.exe /c "taskkill /PID <pid> /F"` before starting a new one.
 - **The user has a test server** and wants to install jars there. They chose "build the harness and
   give me the jar" over running it locally.
 - **Anti-cheat risk:** invisible player entities are a classic cheat-client signature. If this goes on

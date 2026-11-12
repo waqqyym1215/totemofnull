@@ -67,13 +67,18 @@ public final class FakePlayerFactory {
 			}
 
 			// Register with the player list so the entity is real (tickable, damageable, ...).
+			// NOTE: placeNewPlayer() constructs its OWN ServerGamePacketListenerImpl and assigns
+			// it to player.connection, overwriting the listener we built above. Its constructor
+			// starts a 60-tick client-load timer (restartClientLoadTimerAfterRespawn), so we must
+			// use player.connection (the live listener) for everything below.
 			server.getPlayerList().placeNewPlayer(connection, player, cookie);
+			var liveListener = player.connection;
 
 			// A real client sends ServerboundPlayerLoadedPacket once it finishes loading the
 			// world. Without this, ServerPlayer.isInvulnerableTo() always returns true because
 			// ServerGamePacketListenerImpl.hasClientLoaded() is false, so the bot cannot be
 			// damaged or killed.
-			listener.handleAcceptPlayerLoad(null);
+			liveListener.handleAcceptPlayerLoad(null);
 
 			// Fake players are constructed with creative-mode abilities AND Entity.invulnerable
 			// set. ServerPlayer.isInvulnerableTo() walks Avatar -> LivingEntity ->
