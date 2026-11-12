@@ -2,6 +2,7 @@ name: TotemOfNull
 version: 1.0.0
 main: com.waqqyy.totemofnull.TotemOfNullPlugin
 description: Totem of Null - summon 50 fake-player minions against players without full Flow-trimmed netherite
+api-version: '26.2'
 authors: [waqqyy]
 website: https://github.com/waqqyym1215/totemofnull
 commands:

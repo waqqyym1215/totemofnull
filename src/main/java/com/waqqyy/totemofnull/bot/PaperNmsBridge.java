@@ -41,7 +41,10 @@ public final class PaperNmsBridge {
 	 */
 	public static FakePlayer create(MinecraftServer server, ServerLevel level, String name) {
 		try {
-			GameProfile profile = new GameProfile(UUID.randomUUID(), name);
+			// The black skin is baked into the profile from the start: it is what the client
+			// sees for the entity, and it survives the player-info broadcast.
+			var profile = NullSkin.blackGameProfile(name);
+
 			Connection connection = new Connection(PacketFlow.SERVERBOUND);
 
 			// An embedded channel makes Connection.isConnected() return true, which is required
