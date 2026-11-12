@@ -54,7 +54,7 @@ Paper 26.2 has **no built-in fake-player API** (`FakePlayer`/`NPC` classes do no
 API jar). Options were:
 
 - **NMS `ServerPlayer` with a null/offline connection**, full control, no extra dependency.
-- **ProtocolLib / fake-player library** — version-tolerant, but an extra dependency and another
+- **ProtocolLib / fake-player library**, version-tolerant, but an extra dependency and another
   thing to keep compatible.
 
 We chose **NMS** for control and zero extra dependencies. The cost is version-coupling (see
@@ -84,7 +84,7 @@ A player is a valid target if they are **not** wearing a complete set of netheri
 - Bots **automatically die after 15 minutes** and do **not** respawn until the holder uses the
   keybind again.
 - Bots **drop everything** except their armor, sword, and shield.
-- Bots **do not attack other mobs** — they only target valid players.
+- Bots **do not attack other mobs**, they only target valid players.
 - Bots **pick up** golden apples dropped by other bots.
 
 ### 6. Bot behavior details
