@@ -30,7 +30,7 @@ and they automatically receive their netherite armor and tools.
 | **Server software** | Paper (or a Paper fork) |
 | **Minecraft version** | 26.2 |
 | **Java** | 25+ |
-| **Plugin installed?** | **Required.** This is a plugin, not a client-side mod — nothing works unless the server has it installed. |
+| **Plugin installed?** | **Required.** This is a plugin, not a client-side mod, nothing works unless the server has it installed. |
 
 The plugin uses **NMS** (net.minecraft.server) to spawn fake players, so it is tied to the exact
 Paper build it was compiled against. See [Known Limitations](#known-limitations).
@@ -53,7 +53,7 @@ server has it installed."
 Paper 26.2 has **no built-in fake-player API** (`FakePlayer`/`NPC` classes do not exist in the
 API jar). Options were:
 
-- **NMS `ServerPlayer` with a null/offline connection** — full control, no extra dependency.
+- **NMS `ServerPlayer` with a null/offline connection**, full control, no extra dependency.
 - **ProtocolLib / fake-player library** — version-tolerant, but an extra dependency and another
   thing to keep compatible.
 
