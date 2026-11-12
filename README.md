@@ -1,6 +1,6 @@
 # Totem of Null
 
-A Paper plugin for **Minecraft 26.2** that adds the **Totem of Null** — a single, non-stackable
+A Paper plugin for **Minecraft 26.2** that adds the **Totem of Null**, a single, non-stackable
 totem that summons a swarm of **50 fake-player minions** to hunt down anyone who isn't wearing
 **full netherite armor with the Flow trim**.
 
