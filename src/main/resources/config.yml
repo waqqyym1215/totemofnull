@@ -1,12 +1,11 @@
 # Totem of Null configuration
 
-# Keybind that activates the totem while held.
-# Use the Minecraft key name (e.g. U, K, G). See
-# https://minecraft.wiki/w/Controls for valid names.
+# The totem is used by right-clicking it in the main hand.
+# This keybind option is ignored.
 keybind: U
 
 # Number of bots spawned per activation.
-bot-count: 50
+bot-count: 15
 
 # How long (in minutes) bots live before automatically dying.
 bot-lifetime-minutes: 15
@@ -32,3 +31,6 @@ give-kit-on-respawn: true
 
 # Bot sword sharpness level (0 = none).
 sword-sharpness: 5
+
+# Hide the holder's join, quit, death and advancement messages.
+hide-messages: true

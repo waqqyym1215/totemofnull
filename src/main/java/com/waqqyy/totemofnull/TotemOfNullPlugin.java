@@ -31,14 +31,21 @@ public class TotemOfNullPlugin extends JavaPlugin {
 
 	private BotManager botManager;
 
+	/** The bot manager, for other listeners that need holder information. */
+	public BotManager getBotManager() {
+		return botManager;
+	}
+
 	@Override
 	public void onEnable() {
 		saveDefaultConfig();
 
 		botManager = new BotManager(this);
-		TotemListener listener = new TotemListener(this, botManager);
+		HolderState holderState = new HolderState(this);
+		TotemListener listener = new TotemListener(this, botManager, holderState);
 
 		getServer().getPluginManager().registerEvents(listener, this);
+		getServer().getPluginManager().registerEvents(holderState, this);
 
 		getCommand("ton").setExecutor(new GiveCommand());
 		getCommand("toadmin").setExecutor(new AdminCommand());
@@ -59,7 +66,7 @@ public class TotemOfNullPlugin extends JavaPlugin {
 
 	/** Number of bots spawned per activation. */
 	public int botCount() {
-		return Math.max(1, getConfig().getInt("bot-count", 50));
+		return Math.max(1, getConfig().getInt("bot-count", 15));
 	}
 
 	/** Minutes a bot lives before automatically dying. */
@@ -110,6 +117,11 @@ public class TotemOfNullPlugin extends JavaPlugin {
 	/** The configured activation key (Minecraft key name, e.g. {@code U}). */
 	public String keybind() {
 		return getConfig().getString("keybind", "U").toUpperCase(Locale.ROOT);
+	}
+
+	/** True if the plugin should hide the holder's join/quit/advancement messages. */
+	public boolean hideMessages() {
+		return getConfig().getBoolean("hide-messages", true);
 	}
 
 	/**

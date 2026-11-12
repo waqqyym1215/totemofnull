@@ -7,13 +7,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Optional;
 
@@ -24,25 +25,29 @@ public class TotemListener implements Listener {
 
 	private final TotemOfNullPlugin plugin;
 	private final BotManager botManager;
+	private final HolderState holderState;
 
-	public TotemListener(TotemOfNullPlugin plugin, BotManager botManager) {
+	public TotemListener(TotemOfNullPlugin plugin, BotManager botManager, HolderState holderState) {
 		this.plugin = plugin;
 		this.botManager = botManager;
+		this.holderState = holderState;
 	}
 
 	/** True if the given stack is the Totem of Null. */
 	public static boolean isTotem(ItemStack stack) {
-		if (stack == null || !stack.hasItemMeta()) {
-			return false;
-		}
-		ItemMeta meta = stack.getItemMeta();
-		String name = meta.getDisplayName();
-		return name != null && name.equals(ChatColor.DARK_PURPLE + "Totem of Null");
+		return HolderState.isTotem(stack);
 	}
 
+	/**
+	 * Right-click only. There is no keybind: the totem is used by right-clicking it in the
+	 * main hand, and the keybind config option is ignored.
+	 */
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void onInteract(PlayerInteractEvent event) {
 		if (event.getHand() != EquipmentSlot.HAND) {
+			return;
+		}
+		if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
 			return;
 		}
 		ItemStack stack = event.getItem();
@@ -51,8 +56,6 @@ public class TotemListener implements Listener {
 		}
 		Player player = event.getPlayer();
 
-		// The totem only works via the keybind; right-click is the fallback trigger.
-		// A real keybind is client-side; see README "Known Limitations".
 		if (botManager.isActive(player)) {
 			player.sendMessage(ChatColor.DARK_PURPLE + "The swarm is already hunting. It cannot be summoned again.");
 			return;
@@ -65,11 +68,10 @@ public class TotemListener implements Listener {
 		if (plugin.giveKitOnActivate()) {
 			giveKit(player);
 		}
-		// Hide the owner's name.
-		player.setPlayerListName(TotemOfNullPlugin.HIDDEN_NAME);
-		player.setDisplayName(TotemOfNullPlugin.HIDDEN_NAME);
 		// Summon the swarm.
 		botManager.summon(player);
+		// The hidden identity comes from the totem itself; make sure it is applied.
+		holderState.applyHidden(player);
 		player.sendMessage(ChatColor.DARK_PURPLE + "The swarm awakens. " + plugin.botCount()
 				+ " minions rise to hunt the untrimmed.");
 	}
@@ -83,25 +85,29 @@ public class TotemListener implements Listener {
 		player.getInventory().setItemInMainHand(ArmorKit.sword(plugin.swordSharpness()));
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR)
 	public void onRespawn(PlayerRespawnEvent event) {
 		Player player = event.getPlayer();
 		if (!plugin.giveKitOnRespawn()) {
 			return;
 		}
-		boolean hasTotem = hasTotem(player);
+		boolean hasTotem = holderState.hasTotem(player);
 		if (!hasTotem) {
 			return;
 		}
 		// Restore kit and anonymity on the next tick (inventory is reset on respawn).
 		plugin.getServer().getGlobalRegionScheduler().runDelayed(plugin, task -> {
 			giveKit(player);
-			player.setPlayerListName(TotemOfNullPlugin.HIDDEN_NAME);
-			player.setDisplayName(TotemOfNullPlugin.HIDDEN_NAME);
+			holderState.sync(player);
 		}, 1L);
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onHeld(PlayerItemHeldEvent event) {
+		holderState.sync(event.getPlayer());
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR)
 	public void onQuit(PlayerQuitEvent event) {
 		botManager.deactivate(event.getPlayer());
 	}
@@ -125,12 +131,7 @@ public class TotemListener implements Listener {
 	}
 
 	private boolean hasTotem(Player player) {
-		for (ItemStack stack : player.getInventory().getContents()) {
-			if (isTotem(stack)) {
-				return true;
-			}
-		}
-		return false;
+		return holderState.hasTotem(player);
 	}
 
 	/** Holder name, if any (for admin status). */
