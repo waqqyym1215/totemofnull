@@ -145,6 +145,10 @@ public class BotManager {
 				dead.add(bot);
 				continue;
 			}
+			// The server only calls ServerPlayer.doTick() from a real network connection's
+			// tick, and a fake player has none. doTick() is what runs Player.tick(): gravity,
+			// velocity (knockback), hurt/invulnerability timers and the attack cooldown.
+			bot.player().doTick();
 			tickBot(bot, now);
 		}
 		if (!dead.isEmpty()) {
@@ -331,6 +335,10 @@ public class BotManager {
 		}
 		double distance = from.distance(to);
 		if (distance <= 3.0) {
+			return;
+		}
+		// Walking is a teleport, which would cancel out knockback. Let a hit play out first.
+		if (bot.player().hurtTime > 0) {
 			return;
 		}
 		if (distance > 64.0) {

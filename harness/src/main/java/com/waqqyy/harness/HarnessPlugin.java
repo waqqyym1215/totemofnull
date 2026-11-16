@@ -27,6 +27,18 @@ public class HarnessPlugin extends JavaPlugin {
 	public void onEnable() {
 		getCommand("harness").setExecutor(new HarnessCommand());
 		getLogger().info("Harness ready. Run /harness all");
+		getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
+			@org.bukkit.event.EventHandler
+			public void onVelocity(org.bukkit.event.player.PlayerVelocityEvent event) {
+				if (keepVelocity.contains(event.getPlayer().getUniqueId())) {
+					event.setCancelled(true);
+				}
+			}
+		}, this);
+		// The local console is not scriptable, so allow the knockback check to run unattended.
+		if (Boolean.getBoolean("harness.knockback")) {
+			Bukkit.getGlobalRegionScheduler().runDelayed(this, task -> knockback(), 40L);
+		}
 	}
 
 	@Override
@@ -56,6 +68,7 @@ public class HarnessPlugin extends JavaPlugin {
 				}
 				case "tps" -> tps(sender);
 				case "all" -> runAll(sender);
+				case "knockback" -> knockback();
 				default -> sender.sendMessage("Usage: /harness [spawn|status|kill|clear|tps|all]");
 			}
 			return true;
@@ -258,5 +271,72 @@ public class HarnessPlugin extends JavaPlugin {
 		} else {
 			getLogger().warning(line);
 		}
+	}
+
+	private final java.util.Set<java.util.UUID> keepVelocity = new java.util.HashSet<>();
+
+	/**
+	 * Knockback check. Pair A gets the candidate fix (doTick() every tick plus a cancelled
+	 * PlayerVelocityEvent); pair B is the control, ticked only by the level like the plugin's
+	 * bots were. Each attacker hits its victim with the real Player.attack() path.
+	 */
+	private void knockback() {
+		clearAll();
+		var world = getServer().getWorlds().get(0);
+		var spawn = world.getSpawnLocation();
+		world.getChunkAt(spawn).addPluginChunkTicket(this);
+		var server = FakePlayerFactory.nmsServer(getServer());
+		var level = FakePlayerFactory.nmsLevel(world);
+		double x = spawn.getBlockX() + 0.5;
+		double z = spawn.getBlockZ() + 0.5;
+		double y = world.getHighestBlockYAt(spawn) + 1.0;
+
+		var victimA = FakePlayerFactory.create(server, level, "KbVictimA");
+		var attackerA = FakePlayerFactory.create(server, level, "KbAttackA");
+		var victimB = FakePlayerFactory.create(server, level, "KbVictimB");
+		var attackerB = FakePlayerFactory.create(server, level, "KbAttackB");
+		for (var r : List.of(victimA, attackerA, victimB, attackerB)) {
+			if (r.error() != null) {
+				check("Knockback spawn", false, String.valueOf(r.error()));
+				return;
+			}
+			bots.add(r);
+		}
+		var vA = victimA.player();
+		var aA = attackerA.player();
+		var vB = victimB.player();
+		var aB = attackerB.player();
+		vA.teleportTo(x, y, z);
+		aA.teleportTo(x + 1.5, y, z);
+		vB.teleportTo(x, y, z + 3.0);
+		aB.teleportTo(x + 1.5, y, z + 3.0);
+		keepVelocity.add(vA.getUUID());
+
+		int[] tick = {0};
+		net.minecraft.world.phys.Vec3[] before = new net.minecraft.world.phys.Vec3[2];
+		Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, task -> {
+			tick[0]++;
+			// Attackers always get doTick() so their attack cooldown charges.
+			vA.doTick();
+			aA.doTick();
+			aB.doTick();
+			if (tick[0] == 30) {
+				before[0] = vA.position();
+				before[1] = vB.position();
+				aA.attack(vA);
+				aB.attack(vB);
+				getLogger().info("[KB] hit: healthA=" + vA.getHealth() + " deltaA=" + vA.getDeltaMovement()
+						+ " healthB=" + vB.getHealth() + " deltaB=" + vB.getDeltaMovement());
+			}
+			if (tick[0] == 50) {
+				double movedA = vA.position().distanceTo(before[0]);
+				double movedB = vB.position().distanceTo(before[1]);
+				getLogger().info("[KB] before=" + before[0] + " afterA=" + vA.position()
+						+ " afterB=" + vB.position());
+				check("Knockback with doTick fix", movedA > 0.3, "moved=" + movedA);
+				check("Control without fix does not move", movedB < 0.01, "moved=" + movedB);
+				task.cancel();
+			}
+		}, 1L, 1L);
 	}
 }

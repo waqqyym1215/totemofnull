@@ -13,6 +13,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerVelocityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
@@ -110,6 +111,19 @@ public class TotemListener implements Listener {
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onQuit(PlayerQuitEvent event) {
 		botManager.deactivate(event.getPlayer());
+	}
+
+	/**
+	 * When a player is hit, the server sends the knockback to that player's client and then
+	 * restores the old velocity, expecting the client to move itself. A bot has no client, so
+	 * cancel the event: that skips both the packet and the restore, leaving the knockback on
+	 * the server where BotManager's doTick() applies it.
+	 */
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onBotVelocity(PlayerVelocityEvent event) {
+		if (botManager.isBot(event.getPlayer())) {
+			event.setCancelled(true);
+		}
 	}
 
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
