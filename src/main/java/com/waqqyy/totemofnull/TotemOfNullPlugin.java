@@ -18,7 +18,7 @@ import java.util.Locale;
 /**
  * Totem of Null - a Paper plugin for Minecraft 26.2.
  *
- * <p>Summons 50 fake-player minions that attack anyone not wearing full
+ * <p>Summons 15 fake-player minions that attack anyone not wearing full
  * netherite armor with the Flow trim.</p>
  */
 public class TotemOfNullPlugin extends JavaPlugin {
@@ -30,6 +30,12 @@ public class TotemOfNullPlugin extends JavaPlugin {
 	public static final String HIDDEN_NAME = "________";
 
 	private BotManager botManager;
+	private HolderState holderState;
+
+	/** The holder identity state, for diagnostics. */
+	public HolderState getHolderState() {
+		return holderState;
+	}
 
 	/** The bot manager, for other listeners that need holder information. */
 	public BotManager getBotManager() {
@@ -41,7 +47,7 @@ public class TotemOfNullPlugin extends JavaPlugin {
 		saveDefaultConfig();
 
 		botManager = new BotManager(this);
-		HolderState holderState = new HolderState(this);
+		holderState = new HolderState(this);
 		TotemListener listener = new TotemListener(this, botManager, holderState);
 
 		getServer().getPluginManager().registerEvents(listener, this);
@@ -134,7 +140,7 @@ public class TotemOfNullPlugin extends JavaPlugin {
 		meta.setDisplayName(ChatColor.DARK_PURPLE + "Totem of Null");
 		meta.setLore(java.util.List.of(
 				ChatColor.GRAY + "A single totem of terrible power.",
-				ChatColor.GRAY + "Press " + ChatColor.LIGHT_PURPLE + "U" + ChatColor.GRAY + " while holding to summon the swarm.",
+				ChatColor.LIGHT_PURPLE + "Right-click" + ChatColor.GRAY + " while holding to summon the swarm.",
 				ChatColor.DARK_GRAY + "They will not stop until all who lack the Flow are slain."
 		));
 		stack.setItemMeta(meta);

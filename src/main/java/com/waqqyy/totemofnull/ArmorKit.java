@@ -99,4 +99,47 @@ public final class ArmorKit {
 				&& trim.getMaterial() == TrimMaterial.NETHERITE
 				&& trim.getPattern() == TrimPattern.FLOW;
 	}
+
+	/** Netherite pickaxe for bots that have to dig down to a target. */
+	public static ItemStack pickaxe() {
+		ItemStack stack = new ItemStack(Material.NETHERITE_PICKAXE);
+		var meta = stack.getItemMeta();
+		meta.addEnchant(org.bukkit.enchantments.Enchantment.EFFICIENCY, 5, true);
+		meta.addEnchant(org.bukkit.enchantments.Enchantment.UNBREAKING, 3, true);
+		meta.addEnchant(org.bukkit.enchantments.Enchantment.VANISHING_CURSE, 1, true);
+		stack.setItemMeta(meta);
+		return stack;
+	}
+
+	/**
+	 * True if {@code worn} protects less than {@code kit}: a lower armor tier, or the same tier
+	 * with a lower Protection level. An empty slot is always weaker.
+	 */
+	public static boolean isWeaker(ItemStack worn, ItemStack kit) {
+		return strength(worn) < strength(kit);
+	}
+
+	private static int strength(ItemStack stack) {
+		if (stack == null || stack.getType().isAir()) {
+			return -1;
+		}
+		String name = stack.getType().name();
+		int tier;
+		if (name.startsWith("NETHERITE_")) {
+			tier = 6;
+		} else if (name.startsWith("DIAMOND_")) {
+			tier = 5;
+		} else if (name.startsWith("IRON_")) {
+			tier = 4;
+		} else if (name.startsWith("CHAINMAIL_") || name.startsWith("TURTLE_")) {
+			tier = 3;
+		} else if (name.startsWith("GOLDEN_")) {
+			tier = 2;
+		} else if (name.startsWith("LEATHER_")) {
+			tier = 1;
+		} else {
+			tier = 0;
+		}
+		return tier * 100 + stack.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.PROTECTION);
+	}
 }
