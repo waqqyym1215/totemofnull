@@ -4,6 +4,7 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
 import org.bukkit.Bukkit;
 
 import java.util.UUID;
@@ -35,12 +36,13 @@ public final class NullSkin {
 
 	/** An authlib {@link GameProfile} carrying the black skin, with the given name. */
 	public static GameProfile blackGameProfile(String name) {
-		// The 2-arg constructor uses PropertyMap.EMPTY, which is immutable; put() would throw
-		// UnsupportedOperationException. Build a mutable map and use the 3-arg constructor.
-		var properties = new com.mojang.authlib.properties.PropertyMap(
-				com.google.common.collect.HashMultimap.create());
-		properties.put("textures", new Property("textures", BLACK_SKIN_PROPERTY));
-		return new GameProfile(UUID.randomUUID(), name, properties);
+		// PropertyMap copies whatever it is given into an immutable multimap, so the property must
+		// be added to the backing multimap BEFORE wrapping it. Putting it on the PropertyMap
+		// afterwards (or using the 2-arg GameProfile constructor, which uses PropertyMap.EMPTY)
+		// throws UnsupportedOperationException.
+		var backing = com.google.common.collect.HashMultimap.<String, Property>create();
+		backing.put("textures", new Property("textures", BLACK_SKIN_PROPERTY));
+		return new GameProfile(UUID.randomUUID(), name, new PropertyMap(backing));
 	}
 
 	/** A fresh Paper {@link PlayerProfile} carrying the fully black skin. */
