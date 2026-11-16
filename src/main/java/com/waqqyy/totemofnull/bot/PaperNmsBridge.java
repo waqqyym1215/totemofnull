@@ -103,10 +103,18 @@ public final class PaperNmsBridge {
 		if (player == null) {
 			return;
 		}
+		// connection.disconnect() only closes the channel; the player is taken out of the world
+		// and the player list by the connection's own tick, which a fake player never gets.
+		// Run that step directly.
 		try {
-			player.connection.disconnect(net.kyori.adventure.text.Component.empty());
-		} catch (Throwable ignored) {
-			// best effort
+			player.connection.onDisconnect(new net.minecraft.network.DisconnectionDetails(
+					net.minecraft.network.chat.Component.empty()));
+		} catch (Throwable first) {
+			try {
+				player.level().getServer().getPlayerList().remove(player);
+			} catch (Throwable ignored) {
+				// best effort
+			}
 		}
 	}
 }

@@ -25,6 +25,21 @@ public class NullBot {
 	private Player target;
 	private long lastAttackTick;
 
+	/** Hotbar slots: the sword is held normally, the pickaxe only while digging. */
+	static final int SWORD_SLOT = 0;
+	static final int PICK_SLOT = 1;
+
+	// Per-tick working state, owned by BotManager.
+	long deadSinceTick = -1;
+	long eatingUntilTick = -1;
+	java.util.List<BotNavigator.Node> path;
+	int pathIndex;
+	boolean pathComplete;
+	long nextRepathTick;
+	org.bukkit.block.Block digBlock;
+	float digProgress;
+	long digBlockedUntilTick;
+
 	public NullBot(ServerPlayer player, String name, long spawnedAt, int goldenApples) {
 		this.player = player;
 		this.name = name;
@@ -100,7 +115,7 @@ public class NullBot {
 		return bukkit().getInventory();
 	}
 
-	/** Puts the Null armor, sword and shield on this bot. */
+	/** Puts the Null armor, sword, pickaxe and shield on this bot. */
 	public void equip(int swordSharpness) {
 		PlayerInventory inv = inventory();
 		ItemStack[] armor = com.waqqyy.totemofnull.ArmorKit.armorSet();
@@ -108,7 +123,9 @@ public class NullBot {
 		inv.setChestplate(armor[1]);
 		inv.setLeggings(armor[2]);
 		inv.setBoots(armor[3]);
-		inv.setItemInMainHand(com.waqqyy.totemofnull.ArmorKit.sword(swordSharpness));
+		inv.setHeldItemSlot(SWORD_SLOT);
+		inv.setItem(SWORD_SLOT, com.waqqyy.totemofnull.ArmorKit.sword(swordSharpness));
+		inv.setItem(PICK_SLOT, com.waqqyy.totemofnull.ArmorKit.pickaxe());
 		inv.setItemInOffHand(com.waqqyy.totemofnull.ArmorKit.shield());
 	}
 

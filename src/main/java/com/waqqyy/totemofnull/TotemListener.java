@@ -77,13 +77,48 @@ public class TotemListener implements Listener {
 				+ " minions rise to hunt the untrimmed.");
 	}
 
+	/**
+	 * Gives the kit without destroying anything: an armor piece is only swapped in when it is
+	 * stronger than what is worn (the old piece goes back to the inventory), and the sword is
+	 * added to the inventory rather than replacing the held item, which is the totem.
+	 */
 	private void giveKit(Player player) {
-		var kit = ArmorKit.armorSet();
-		player.getInventory().setHelmet(kit[0]);
-		player.getInventory().setChestplate(kit[1]);
-		player.getInventory().setLeggings(kit[2]);
-		player.getInventory().setBoots(kit[3]);
-		player.getInventory().setItemInMainHand(ArmorKit.sword(plugin.swordSharpness()));
+		var inv = player.getInventory();
+		ItemStack[] kit = ArmorKit.armorSet();
+		ItemStack[] worn = { inv.getHelmet(), inv.getChestplate(), inv.getLeggings(), inv.getBoots() };
+		for (int i = 0; i < kit.length; i++) {
+			if (!ArmorKit.isWeaker(worn[i], kit[i])) {
+				continue;
+			}
+			switch (i) {
+				case 0 -> inv.setHelmet(kit[i]);
+				case 1 -> inv.setChestplate(kit[i]);
+				case 2 -> inv.setLeggings(kit[i]);
+				default -> inv.setBoots(kit[i]);
+			}
+			if (worn[i] != null && !worn[i].getType().isAir()) {
+				giveOrDrop(player, worn[i]);
+			}
+		}
+
+		int sharpness = plugin.swordSharpness();
+		boolean hasSword = false;
+		for (ItemStack stack : inv.getContents()) {
+			if (stack != null && stack.getType() == Material.NETHERITE_SWORD
+					&& stack.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.SHARPNESS) >= sharpness) {
+				hasSword = true;
+				break;
+			}
+		}
+		if (!hasSword) {
+			giveOrDrop(player, ArmorKit.sword(sharpness));
+		}
+	}
+
+	private void giveOrDrop(Player player, ItemStack stack) {
+		for (ItemStack leftover : player.getInventory().addItem(stack).values()) {
+			player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+		}
 	}
 
 	@EventHandler(priority = EventPriority.MONITOR)
@@ -126,13 +161,58 @@ public class TotemListener implements Listener {
 		}
 	}
 
+	/** A real player swings at a bot: the bot raises its shield. */
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onPlayerAttacksBot(io.papermc.paper.event.player.PrePlayerAttackEntityEvent event) {
+		if (event.getAttacked() instanceof Player victim && botManager.isBot(victim)
+				&& !botManager.isBot(event.getPlayer())) {
+			botManager.onAttackedByPlayer(victim);
+		}
+	}
+
+	/** Same for a real player's projectiles, which do not go through the melee event. */
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onProjectileHitsBot(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+		if (!(event.getEntity() instanceof Player victim) || !botManager.isBot(victim)) {
+			return;
+		}
+		if (event.getDamager() instanceof org.bukkit.entity.Projectile projectile
+				&& projectile.getShooter() instanceof Player shooter && !botManager.isBot(shooter)) {
+			botManager.onAttackedByPlayer(victim);
+		}
+	}
+
+	// Bots are never announced: no join, quit, death or advancement messages.
+
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onBotJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+		if (botManager.isBot(event.getPlayer())) {
+			event.joinMessage(null);
+		}
+	}
+
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onBotQuit(PlayerQuitEvent event) {
+		if (botManager.isBot(event.getPlayer())) {
+			event.quitMessage(null);
+		}
+	}
+
+	@EventHandler(priority = EventPriority.HIGHEST)
+	public void onBotAdvancement(org.bukkit.event.player.PlayerAdvancementDoneEvent event) {
+		if (botManager.isBot(event.getPlayer())) {
+			event.message(null);
+		}
+	}
+
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void onDeath(PlayerDeathEvent event) {
 		Player player = event.getEntity();
 		if (!botManager.isBot(player)) {
 			return;
 		}
-		// Bots drop everything except armor, sword and shield.
+		event.deathMessage(null);
+		// Bots drop everything except armor, sword, pickaxe and shield.
 		event.getDrops().removeIf(stack -> {
 			Material type = stack.getType();
 			return type == Material.NETHERITE_HELMET
@@ -140,6 +220,7 @@ public class TotemListener implements Listener {
 					|| type == Material.NETHERITE_LEGGINGS
 					|| type == Material.NETHERITE_BOOTS
 					|| type == Material.NETHERITE_SWORD
+					|| type == Material.NETHERITE_PICKAXE
 					|| type == Material.SHIELD;
 		});
 	}

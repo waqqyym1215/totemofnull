@@ -38,6 +38,9 @@ public class HolderState implements Listener {
 
 	private final TotemOfNullPlugin plugin;
 
+	/** Players currently hidden by this plugin, with the skin property they had before (if any). */
+	private final java.util.Map<java.util.UUID, java.util.Optional<ProfileProperty>> hidden = new java.util.HashMap<>();
+
 	public HolderState(TotemOfNullPlugin plugin) {
 		this.plugin = plugin;
 	}
@@ -69,31 +72,70 @@ public class HolderState implements Listener {
 	/**
 	 * Applies the hidden identity: the {@code ________} name and the fully black skin.
 	 *
-	 * <p>The skin is applied through {@link Player#setPlayerProfile}, which re-sends the player
-	 * info packet to every viewer, so the change is visible immediately.</p>
+	 * <p>Only players recorded in {@link #hidden} are ever touched again, so regular players
+	 * keep their own skin and name.</p>
 	 */
 	public void applyHidden(Player player) {
-		PlayerProfile profile = player.getPlayerProfile();
-		boolean alreadyBlack = NullSkin.isBlackSkin(
-				((com.destroystokyo.paper.profile.CraftPlayerProfile) profile).getGameProfile());
-		if (alreadyBlack && player.getPlayerListName().equals(TotemOfNullPlugin.HIDDEN_NAME)) {
+		if (hidden.containsKey(player.getUniqueId())) {
 			return;
 		}
+		PlayerProfile profile = player.getPlayerProfile();
+		ProfileProperty original = null;
+		for (ProfileProperty property : profile.getProperties()) {
+			if (property.getName().equals("textures")) {
+				original = property;
+			}
+		}
+		hidden.put(player.getUniqueId(), java.util.Optional.ofNullable(original));
+
 		profile.setProperty(new ProfileProperty("textures", NullSkin.blackTextureProperty()));
-		player.setPlayerProfile(profile);
+		showProfile(player, profile);
 		player.setPlayerListName(TotemOfNullPlugin.HIDDEN_NAME);
 		player.setDisplayName(TotemOfNullPlugin.HIDDEN_NAME);
 	}
 
-	/** Restores the player's real name and skin. */
+	/** Restores the real name and skin of a player this plugin hid. Others are left alone. */
 	public void restore(Player player) {
-		if (player.getPlayerListName().equals(TotemOfNullPlugin.HIDDEN_NAME)) {
-			player.setPlayerListName(player.getName());
-			player.setDisplayName(player.getName());
+		var original = hidden.remove(player.getUniqueId());
+		if (original == null) {
+			return;
 		}
+		player.setPlayerListName(player.getName());
+		player.setDisplayName(player.getName());
 		PlayerProfile profile = player.getPlayerProfile();
-		profile.removeProperty("textures");
-		player.setPlayerProfile(profile);
+		if (original.isPresent()) {
+			profile.setProperty(original.get());
+		} else {
+			profile.removeProperty("textures");
+		}
+		showProfile(player, profile);
+	}
+
+	/** True if this plugin is currently hiding the player's identity. */
+	public boolean isHidden(Player player) {
+		return hidden.containsKey(player.getUniqueId());
+	}
+
+	/**
+	 * Swaps the player's profile and re-shows them to everyone who can see them.
+	 *
+	 * <p>{@link Player#setPlayerProfile} is deliberately not used: it also sends the player a
+	 * respawn packet to refresh their own view, which flashes the world-loading screen.</p>
+	 */
+	private void showProfile(Player player, PlayerProfile profile) {
+		var handle = ((org.bukkit.craftbukkit.entity.CraftPlayer) player).getHandle();
+		var viewers = new java.util.ArrayList<Player>();
+		for (Player viewer : Bukkit.getOnlinePlayers()) {
+			if (viewer.equals(player) || plugin.getBotManager().isBot(viewer) || !viewer.canSee(player)) {
+				continue;
+			}
+			viewer.hidePlayer(plugin, player);
+			viewers.add(viewer);
+		}
+		handle.gameProfile = com.destroystokyo.paper.profile.CraftPlayerProfile.asAuthlibCopy(profile);
+		for (Player viewer : viewers) {
+			viewer.showPlayer(plugin, player);
+		}
 	}
 
 	/** Re-applies or restores the identity, whichever the current inventory state requires. */
@@ -117,19 +159,20 @@ public class HolderState implements Listener {
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onJoin(PlayerJoinEvent event) {
 		if (hasTotem(event.getPlayer())) {
-			event.joinMessage(net.kyori.adventure.text.Component.empty());
+			if (plugin.hideMessages()) {
+				event.joinMessage(null);
+			}
 			applyHidden(event.getPlayer());
-		} else {
-			restore(event.getPlayer());
 		}
 	}
 
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onQuit(PlayerQuitEvent event) {
-		if (hasTotem(event.getPlayer())) {
-			event.quitMessage(net.kyori.adventure.text.Component.empty());
+		if (hasTotem(event.getPlayer()) && plugin.hideMessages()) {
+			event.quitMessage(null);
 		}
-		restore(event.getPlayer());
+		// The profile dies with the session; just forget the saved state.
+		hidden.remove(event.getPlayer().getUniqueId());
 	}
 
 	@EventHandler(priority = EventPriority.MONITOR)
@@ -222,7 +265,9 @@ public class HolderState implements Listener {
 			return;
 		}
 		event.getDrops().removeIf(HolderState::isTotem);
-		event.deathMessage(net.kyori.adventure.text.Component.empty());
+		if (plugin.hideMessages()) {
+			event.deathMessage(null);
+		}
 	}
 
 	private boolean isOwner(Player player) {
@@ -236,9 +281,9 @@ public class HolderState implements Listener {
 
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onAdvancement(PlayerAdvancementDoneEvent event) {
-		if (!hasTotem(event.getPlayer())) {
+		if (!hasTotem(event.getPlayer()) || !plugin.hideMessages()) {
 			return;
 		}
-		event.message(net.kyori.adventure.text.Component.empty());
+		event.message(null);
 	}
 }
