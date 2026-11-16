@@ -1,37 +1,45 @@
 package com.waqqyy.totemofnull.bot;
 
-import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
-import org.bukkit.Bukkit;
 
 import java.util.UUID;
 
 /**
- * The shared "Null" identity: a fully black skin plus the hidden name.
+ * The shared "Null" skin: fully black, used by the fake-player minions and the totem holder.
  *
- * <p>Both the fake-player minions and the totem holder use this skin. The texture is embedded as a
- * base64 data URI so the plugin needs no network access or external host.</p>
+ * <p>The client only shows a player skin whose textures property is signed by Mojang and points
+ * at textures.minecraft.net, so this is a real signed property for an all-black 64x64 skin
+ * (every pixel is opaque 0,0,0, both layers). The signature does not expire.</p>
  */
 public final class NullSkin {
 
-	/** Base64 of the unsigned texture property JSON for a fully black classic-model skin. */
-	private static final String BLACK_SKIN_PROPERTY =
-				"eyJ0aW1lc3RhbXAiOjAsInByb2ZpbGVJZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInByb2Zp" +
-				"bGVOYW1lIjoibnVsbCIsInRleHR1cmVzIjp7IlNLSU4iOnsidXJsIjoiZGF0YTppbWFnZS9wbmc7YmFzZTY0LGlWQk9SdzBL" +
-				"R2dvQUFBQU5TVWhFVWdBQUFFQUFBQUJBQ0FZQUFBQ3FhWEhlQUFBQVlrbEVRVlI0MnUzUU1SRUFBQWdBb2U5ZlduTjRNbENB" +
-				"cW5sT2dBQUJBZ1FJRUNCQWdBQUJBZ1FJRUNCQWdBQUJBZ1FJRUNCQWdBQUJBZ1FJRUNCQWdBQUJBZ1FJRUNCQWdBQUJBZ1FJ" +
-				"RUNCQWdBQUJBZ1FJRUNCQWdBQUJBZ1FJdUc0QldIenc0dUpSUUdvQUFBQUFTVVZPUks1Q1lJST0iLCJtZXRhZGF0YSI6eyJt" +
-				"b2RlbCI6ImNsYXNzaWMifX19fQ==";
+	/** Texture: http://textures.minecraft.net/texture/eaccb07f0536dd817c1525a3a3f97e428095c9b298460bc7a3a3e1b8b9fc71fa */
+	private static final String BLACK_SKIN_VALUE =
+			"ewogICJ0aW1lc3RhbXAiIDogMTYyMzAzMjA4MTQ3NiwKICAicHJvZmlsZUlkIiA6ICJkZGVkNTZlMWVmOGI0MGZlOGFkMTYy" +
+			"OTIwZjdhZWNkYSIsCiAgInByb2ZpbGVOYW1lIiA6ICJEaXNjb3JkQXBwIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1" +
+			"ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNy" +
+			"YWZ0Lm5ldC90ZXh0dXJlL2VhY2NiMDdmMDUzNmRkODE3YzE1MjVhM2EzZjk3ZTQyODA5NWM5YjI5ODQ2MGJjN2EzYTNlMWI4" +
+			"YjlmYzcxZmEiCiAgICB9CiAgfQp9";
+
+	private static final String BLACK_SKIN_SIGNATURE =
+			"mxwj4Y2K3DI5cF+VNSWSntMa13cXV6SbuAVMgpsY2zrc3UWJrd9Mxy1qYefNfHL1bJMDrwZoyyTrlU3EDisoGPd1xckfOXIK" +
+			"ThDQQVLHvhEqYjj5AAZY/9ljh0cxhDGMq/eT4Xs6vMH25jD/dCgGibcgvzeKoqk41j1v4qZXsn5tCSzXJLnVK/GjdjUSOnRs" +
+			"/PIjERRhuq0We9fmOEBzKA3FVHk6O1g+iIsSYDJaw2XIALcYOQlz4p0PYqctFaEGEPeM5TlZDgrSVdTEjYlENq4ktp7yIBAR" +
+			"Kh0DS5x/lnM1PY0UJ7JNLqvGczi5SyzlcoEhfqWInz97k/YHSPSMtXq3Ny57qCBnq34mXm4PBXjCjIbBo0YkL62CWHrF3HfF" +
+			"lTtwzkX/Ck9ehYZphXZX3d8ZS1rn+nxn/cnRa4bX8x1c+3vemZtUQpDPHfHho23qG22QtGv8kvnE+Si6WioxAkbGDx1uK0Ua" +
+			"fxeuV3KzqGX4P34InwMMB+DUxJR1ddEtPjbizCLtzCkomjXHBrhfA+TaoKzE2WAsUKKEgV17IV0YOGrkM1IOElmlyFKBCny/" +
+			"6Pbq473lkZH4kGRjvhLjpKeHlRuicUK4d1x/mb1Wn5rJnfOH36lUXZwrQcp4DZFnbrfoisoetelV0XA9l5FHBO86KYBnvZS9" +
+			"hJcM37Z28B4=";
 
 	private NullSkin() {
 	}
 
-	/** The base64 "textures" property value for the fully black skin. */
-	public static String blackTextureProperty() {
-		return BLACK_SKIN_PROPERTY;
+	/** The signed "textures" property for the black skin, as a Paper profile property. */
+	public static ProfileProperty blackProfileProperty() {
+		return new ProfileProperty("textures", BLACK_SKIN_VALUE, BLACK_SKIN_SIGNATURE);
 	}
 
 	/** An authlib {@link GameProfile} carrying the black skin, with the given name. */
@@ -41,34 +49,17 @@ public final class NullSkin {
 		// afterwards (or using the 2-arg GameProfile constructor, which uses PropertyMap.EMPTY)
 		// throws UnsupportedOperationException.
 		var backing = com.google.common.collect.HashMultimap.<String, Property>create();
-		backing.put("textures", new Property("textures", BLACK_SKIN_PROPERTY));
+		backing.put("textures", new Property("textures", BLACK_SKIN_VALUE, BLACK_SKIN_SIGNATURE));
 		return new GameProfile(UUID.randomUUID(), name, new PropertyMap(backing));
 	}
 
-	/** A fresh Paper {@link PlayerProfile} carrying the fully black skin. */
-	public static com.destroystokyo.paper.profile.PlayerProfile blackProfile(String name) {
-		com.destroystokyo.paper.profile.PlayerProfile profile = Bukkit.createProfile(name);
-		profile.setProperty(new ProfileProperty("textures", BLACK_SKIN_PROPERTY));
-		return profile;
-	}
-
-	/**
-	 * Applies the black skin to an existing profile, preserving its name and UUID.
-	 *
-	 * @return the same profile, mutated
-	 */
-	public static PlayerProfile applyBlackSkin(PlayerProfile profile) {
-		profile.setProperty(new ProfileProperty("textures", BLACK_SKIN_PROPERTY));
-		return profile;
-	}
-
-	/** True if the given NMS profile already carries the black skin. */
+	/** True if the given NMS profile carries the black skin. */
 	public static boolean isBlackSkin(GameProfile profile) {
 		if (profile == null) {
 			return false;
 		}
 		for (var property : profile.properties().get("textures")) {
-			if (BLACK_SKIN_PROPERTY.equals(property.value())) {
+			if (BLACK_SKIN_VALUE.equals(property.value())) {
 				return true;
 			}
 		}

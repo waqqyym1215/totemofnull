@@ -88,8 +88,8 @@ public class HolderState implements Listener {
 		}
 		hidden.put(player.getUniqueId(), java.util.Optional.ofNullable(original));
 
-		profile.setProperty(new ProfileProperty("textures", NullSkin.blackTextureProperty()));
-		showProfile(player, profile);
+		profile.setProperty(NullSkin.blackProfileProperty());
+		showProfile(player, profile, true);
 		player.setPlayerListName(TotemOfNullPlugin.HIDDEN_NAME);
 		player.setDisplayName(TotemOfNullPlugin.HIDDEN_NAME);
 	}
@@ -108,7 +108,7 @@ public class HolderState implements Listener {
 		} else {
 			profile.removeProperty("textures");
 		}
-		showProfile(player, profile);
+		showProfile(player, profile, false);
 	}
 
 	/** True if this plugin is currently hiding the player's identity. */
@@ -121,20 +121,39 @@ public class HolderState implements Listener {
 	 *
 	 * <p>{@link Player#setPlayerProfile} is deliberately not used: it also sends the player a
 	 * respawn packet to refresh their own view, which flashes the world-loading screen.</p>
+	 *
+	 * @param hideName show the name tag above the player's head as {@code ________}
 	 */
-	private void showProfile(Player player, PlayerProfile profile) {
+	private void showProfile(Player player, PlayerProfile profile, boolean hideName) {
 		var handle = ((org.bukkit.craftbukkit.entity.CraftPlayer) player).getHandle();
-		var viewers = new java.util.ArrayList<Player>();
-		for (Player viewer : Bukkit.getOnlinePlayers()) {
-			if (viewer.equals(player) || plugin.getBotManager().isBot(viewer) || !viewer.canSee(player)) {
-				continue;
-			}
-			viewer.hidePlayer(plugin, player);
-			viewers.add(viewer);
-		}
 		handle.gameProfile = com.destroystokyo.paper.profile.CraftPlayerProfile.asAuthlibCopy(profile);
-		for (Player viewer : viewers) {
+		for (Player viewer : Bukkit.getOnlinePlayers()) {
+			reshow(player, viewer, hideName);
+		}
+	}
+
+	/**
+	 * Re-sends {@code player} to one viewer.
+	 *
+	 * <p>The name tag above a player's head is the profile name in the player-info packet. The
+	 * server-side profile keeps the real name (commands, lookups and saves depend on it), so
+	 * the hidden name is swapped in only while that packet is built.</p>
+	 */
+	private void reshow(Player player, Player viewer, boolean hideName) {
+		if (viewer.equals(player) || plugin.getBotManager().isBot(viewer) || !viewer.canSee(player)) {
+			return;
+		}
+		var handle = ((org.bukkit.craftbukkit.entity.CraftPlayer) player).getHandle();
+		var real = handle.gameProfile;
+		viewer.hidePlayer(plugin, player);
+		try {
+			if (hideName) {
+				handle.gameProfile = new com.mojang.authlib.GameProfile(
+						real.id(), TotemOfNullPlugin.HIDDEN_NAME, real.properties());
+			}
 			viewer.showPlayer(plugin, player);
+		} finally {
+			handle.gameProfile = real;
 		}
 	}
 
@@ -158,6 +177,21 @@ public class HolderState implements Listener {
 
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onJoin(PlayerJoinEvent event) {
+		// A player who joins is sent everyone's real profile name; fix up the hidden ones.
+		Player joined = event.getPlayer();
+		if (!hidden.isEmpty() && !plugin.getBotManager().isBot(joined)) {
+			plugin.getServer().getGlobalRegionScheduler().runDelayed(plugin, task -> {
+				if (!joined.isOnline()) {
+					return;
+				}
+				for (java.util.UUID id : hidden.keySet()) {
+					Player holder = Bukkit.getPlayer(id);
+					if (holder != null) {
+						reshow(holder, joined, true);
+					}
+				}
+			}, 1L);
+		}
 		if (hasTotem(event.getPlayer())) {
 			if (plugin.hideMessages()) {
 				event.joinMessage(null);
