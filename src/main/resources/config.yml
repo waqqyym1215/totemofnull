@@ -1,8 +1,8 @@
 # Totem of Null configuration
 
-# The totem is used by right-clicking it in the main hand.
-# This keybind option is ignored.
-keybind: U
+# The totem is activated with the Shift+F combo (sneak + swap-hands key) while holding it
+# in the main hand. Paper does not support custom keybinds, so this built-in combo is the
+# only way to activate it.
 
 # Number of bots spawned per activation.
 bot-count: 15

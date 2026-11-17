@@ -120,11 +120,6 @@ public class TotemOfNullPlugin extends JavaPlugin {
 		return getConfig().getBoolean("give-kit-on-respawn", true);
 	}
 
-	/** The configured activation key (Minecraft key name, e.g. {@code U}). */
-	public String keybind() {
-		return getConfig().getString("keybind", "U").toUpperCase(Locale.ROOT);
-	}
-
 	/** True if the plugin should hide the holder's join/quit/advancement messages. */
 	public boolean hideMessages() {
 		return getConfig().getBoolean("hide-messages", true);

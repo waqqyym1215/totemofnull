@@ -7,14 +7,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerVelocityEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Optional;
@@ -40,22 +38,25 @@ public class TotemListener implements Listener {
 	}
 
 	/**
-	 * Right-click only. There is no keybind: the totem is used by right-clicking it in the
-	 * main hand, and the keybind config option is ignored.
+	 * Activation has no dedicated keybind: Paper does not support custom keybinds. Instead the
+	 * built-in "swap hands" key (F, {@link PlayerSwapHandItemsEvent}) is combined with sneaking
+	 * (Shift) to form a Shift+F combo. This is the ONLY way to activate the totem.
 	 */
 	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-	public void onInteract(PlayerInteractEvent event) {
-		if (event.getHand() != EquipmentSlot.HAND) {
+	public void onSwapHands(PlayerSwapHandItemsEvent event) {
+		Player player = event.getPlayer();
+		if (!player.isSneaking()) {
 			return;
 		}
-		if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
-			return;
-		}
-		ItemStack stack = event.getItem();
+		// The totem starts in the main hand, so after the swap it ends up in the off-hand:
+		// getOffHandItem() is "the item switched to the off hand", i.e. what was in the main
+		// hand before the swap. getMainHandItem() would be the old (empty) off-hand item.
+		ItemStack stack = event.getOffHandItem();
 		if (!isTotem(stack)) {
 			return;
 		}
-		Player player = event.getPlayer();
+		// Prevent the actual item swap: this is a keybind, not a hand swap.
+		event.setCancelled(true);
 
 		if (botManager.isActive(player)) {
 			player.sendMessage(ChatColor.DARK_PURPLE + "The swarm is already hunting. It cannot be summoned again.");
